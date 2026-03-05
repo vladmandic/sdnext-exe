@@ -1,0 +1,18 @@
+{
+  "extends": "stylelint-config-standard",
+  "rules": {
+    "selector-class-pattern": null,
+    "custom-property-pattern": null,
+    "color-function-notation": "legacy",
+    "alpha-value-notation": "number",
+    "custom-property-empty-line-before": null,
+    "color-hex-length": null,
+    "media-feature-range-notation": "prefix",
+    "color-function-alias-notation": null
+  },
+  "ignoreFiles": [
+    "dist/**",
+    "dist/electron/**",
+    "node_modules/**"
+  ]
+}

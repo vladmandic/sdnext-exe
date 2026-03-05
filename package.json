@@ -1,0 +1,105 @@
+{
+  "name": "sdnext-exe",
+  "version": "0.1.0",
+  "description": "SD.Next Windows installer and launcher",
+  "main": "dist/electron/main/main.js",
+  "author": "vladmandic",
+  "license": "MIT",
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:electron:build\" \"npm:dev:electron\"",
+    "dev:renderer": "vite",
+    "dev:electron:build": "tsc -p tsconfig.electron.json -w",
+    "dev:electron": "wait-on tcp:5173 file:dist/electron/main/main.js file:dist/electron/preload/preload.js && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron . -- --debug",
+    "prod": "npm run build && npm run prod:electron",
+    "prod:electron": "wait-on file:dist/electron/main/main.js file:dist/electron/preload/preload.js file:dist/index.html && electron .",
+    "build": "npm run build:renderer && npm run build:electron",
+    "build:renderer": "vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "typecheck": "tsc -p tsconfig.electron.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
+    "lint": "npm run lint:ts && npm run lint:css",
+    "lint:ts": "eslint \"src/**/*.{ts,tsx}\"",
+    "lint:css": "stylelint \"src/**/*.css\"",
+    "lint:fix": "npm run lint:ts -- --fix && npm run lint:css -- --fix",
+    "clean": "@powershell -NoProfile -ExecutionPolicy Bypass -Command \"Remove-Item -Path dist -Recurse -Force -ErrorAction SilentlyContinue\"",
+    "package": "npm run build && electron-builder --win portable"
+  },
+  "dependencies": {
+    "@fontsource/noto-sans": "^5.2.10",
+    "@xterm/addon-fit": "0.10.0",
+    "@xterm/xterm": "5.5.0",
+    "lucide-react": "^0.577.0",
+    "node-pty": "^1.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.3",
+    "@types/node": "^25.3.3",
+    "@types/react": "^19.0.12",
+    "@types/react-dom": "^19.0.4",
+    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "@typescript-eslint/parser": "^8.56.1",
+    "@vitejs/plugin-react": "^5.1.4",
+    "concurrently": "^9.1.2",
+    "cross-env": "^10.1.0",
+    "electron": "^38.8.4",
+    "electron-builder": "^26.8.1",
+    "eslint": "^9.39.3",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "stylelint": "^17.4.0",
+    "stylelint-config-standard": "^40.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "wait-on": "^9.0.4"
+  },
+  "build": {
+    "appId": "com.vladmandic.sdnext",
+    "productName": "SD.Next",
+    "buildDependenciesFromSource": false,
+    "npmRebuild": false,
+    "directories": {
+      "output": "dist",
+      "buildResources": "public"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "*.zip",
+      "node_modules/node-pty/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "portable",
+        "to": "portable",
+        "filter": [
+          "*.zip"
+        ]
+      },
+      {
+        "from": "sdnext.png",
+        "to": "sdnext.png"
+      },
+      {
+        "from": "public/logo.png",
+        "to": "logo.png"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "portable": {
+      "artifactName": "SD.Next-${version}.exe"
+    }
+  }
+}
