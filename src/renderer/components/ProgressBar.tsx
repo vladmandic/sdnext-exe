@@ -52,21 +52,8 @@ export function ProgressBar({
   const gitPercent = gitFiles > 0 ? Math.min((gitFiles / estimatedGitTotal) * 100, 100) : 0;
   const pythonPercent = pythonFiles > 0 ? Math.min((pythonFiles / estimatedPythonTotal) * 100, 100) : 0;
 
-  const totalFilesExtracted = gitFiles + pythonFiles;
-  const totalEstimated = estimatedGitTotal + estimatedPythonTotal;
-  const overallPercent = totalFilesExtracted > 0 ? Math.min((totalFilesExtracted / totalEstimated) * 100, 100) : 0;
-
   return (
     <div className={`progress-bar-container ${isComplete ? 'complete' : ''}`}>
-      <div className="progress-bar-header">
-        <span className="progress-label">Bootstrap Progress</span>
-        <span className="progress-percent">{Math.round(overallPercent)}%</span>
-      </div>
-
-      <div className="progress-track">
-        <div className="progress-fill" style={{ width: `${overallPercent}%` }} />
-      </div>
-
       <div className="progress-details">
         {gitFiles > 0 && (
           <div className="progress-item git">

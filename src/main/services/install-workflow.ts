@@ -63,7 +63,8 @@ export async function runInstallWorkflow(
         if (onStatus) onStatus('Cloning repository...');
         onOutput(`[git] Cloning ${SDNEXT_REPO_URL}\n`);
         const retryCount = config.gitRetryCount ?? 3;
-        await runGitWithRetry(['clone', '--single-branch', '--branch', config.repositoryBranch, SDNEXT_REPO_URL, appPath], onOutput, retryCount);
+        // use shallow clone to speed up downloads
+        await runGitWithRetry(['clone', '--depth', '1', '--single-branch', '--branch', config.repositoryBranch, SDNEXT_REPO_URL, appPath], onOutput, retryCount);
       }
       checkpoint = checkpointSvc.markStepCompleted(checkpoint, 'git-clone');
     } else {

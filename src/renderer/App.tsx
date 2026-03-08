@@ -1,3 +1,4 @@
+/* eslint react-hooks/exhaustive-deps: off */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
@@ -6,6 +7,7 @@ import {
   Copy,
   Download,
   ExternalLink,
+  Chromium,
   FolderOpen,
   Package,
   Power,
@@ -14,16 +16,45 @@ import {
   SlidersHorizontal,
   Trash2,
   Wrench,
+  Sun,
+  Moon,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Info,
 } from 'lucide-react';
+
 import type { SdNextConfig, StartupState, TerminalDimensions, UiStatus } from '../shared/types';
+import { toast, Toaster } from 'sonner';
+import 'sonner/dist/styles.css';
+
 import { STATUS } from '../shared/status-constants';
 import { LazyTerminalPanel } from './components/LazyTerminalPanel';
 import { ProgressBar } from './components/ProgressBar';
 import { useDebounce } from './hooks/useDebounce';
 
-type ActionState = 'idle' | 'bootstrap' | 'install' | 'start' | 'wipe-venv' | 'wipe-bin' | 'wipe-app';
+type ActionState = 'idle' | 'bootstrap' | 'install' | 'launch' | 'wipe-venv' | 'wipe-bin' | 'wipe-app';
 type WipeTarget = 'venv' | 'bin' | 'app';
 const VERSION_CHECK_DEDUPE_MS = 2000;
+
+// Tutorial data: text plus selector for element to highlight
+const TUTORIAL_DATA: { text: string; selector: string | null }[] = [
+  { text: 'Click "Bootstrap" to unpack bundled Git and Python tools to be used by the app', selector: '.icon-btn.action-btn[aria-label="Bootstrap"]' },
+  { text: 'Verify "Options" are set correctly for your environment: GPU type, paths, startup options, etc.', selector: '.options-toggle' },
+  { text: 'Click "Install" to download latest version of SD.Next and install requirements', selector: '.icon-btn.action-btn[aria-label="Install"]' },
+  { text: 'Click "Launch" to start the app', selector: '.icon-btn.action-btn[aria-label="Launch"]' },
+  { text: 'Click "Open Browser" to open the app in your default web browser once it\'s running', selector: 'button[aria-label="Open browser"]' },
+  { text: 'Click "Stop" to immediately stop the app if needed', selector: '.icon-btn.action-btn.danger[aria-label="Stop"]' },
+  { text: 'Monitor the terminal for progress: Logs are your friend! They will show you what\'s happening behind the scenes and help you troubleshoot if anything goes wrong.', selector: '.terminal-wrap' },
+  { text: 'Click Copy/Download logs to save the terminal output for later reference or sharing with support', selector: '.terminal-actions' },
+  { text: 'Click the "Docs" tab to view full documentation for help with SD.Next usage and features', selector: '.terminal-tabs .tabs-buttons button:nth-child(2)' },
+  { text: 'Click the "Changelog" tab to see a list of recent changes in SD.Next', selector: '.terminal-tabs .tabs-buttons button:nth-child(3)' },
+];
+
+// backwards-compat alias for any stray references
+const _TUTORIAL_STEPS: string[] = TUTORIAL_DATA.map(d => d.text);
+
+
 
 const defaultStartupState: StartupState = {
   logoPath: '',
@@ -51,6 +82,7 @@ const defaultConfig: SdNextConfig = {
   modelsPath: '',
   customParameters: '',
   customEnvironment: '',
+  showTutorial: true,
 };
 
 const isBootstrapStatus = (status: UiStatus): boolean => {
@@ -76,7 +108,7 @@ const isBusyStatus = (status: UiStatus): boolean => {
     status === 'Cloning repository...' ||
     status === 'Creating VENV...' ||
     status === 'Installing dependencies...' ||
-    status === STATUS.STARTING ||
+    status === STATUS.LAUNCHING ||
     status === 'Running...' ||
     isReadyStatus
   );
@@ -194,6 +226,10 @@ export function App() {
   });
   const [installStatusOverride, setInstallStatusOverride] = useState<string | null>(null);
   const installTerminalTailRef = useRef('');
+  const [browserUrl, setBrowserUrl] = useState<string>('');
+  const [tutorialRunning, setTutorialRunning] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
+  const tutorialTimerRef = useRef<number | null>(null);
   const [torchBackendInfo, setTorchBackendInfo] = useState<string>(() => {
     try {
       const cached = localStorage.getItem(LAST_TORCH_BACKEND_KEY);
@@ -253,6 +289,7 @@ export function App() {
     setStartup(startupState);
     return;
   };
+
 
   const fetchVersionInfo = useCallback(
     async (installationPath: string, force = false): Promise<void> => {
@@ -339,7 +376,22 @@ export function App() {
   useEffect(() => {
     // Set up listeners immediately (non-blocking)
     const removeTerminalListener = window.sdnext.onTerminalOutput((event) => {
-      if (activeAction === 'install' || activeAction === 'start') {
+      // Watch for 'Local URL:' during launch to enable open browser button
+      if (activeAction === 'launch') {
+        const urlMatch = event.text.match(/Local URL:\s*(\S+)/);
+        if (urlMatch) {
+          // strip ANSI escapes which sometimes appear in terminal output
+          let raw = stripAnsiSequences(urlMatch[1]);
+          raw = raw.trim();
+          // if missing scheme, assume http
+          if (raw && !/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(raw)) {
+            raw = 'http://' + raw;
+          }
+          setBrowserUrl(raw);
+        }
+      }
+
+      if (activeAction === 'install' || activeAction === 'launch') {
         const strippedChunk = stripAnsiSequences(event.text)
           .replace(/\r\n/g, '\n')
           .replace(/\r/g, '\n');
@@ -401,6 +453,10 @@ export function App() {
     const removeStatusListener = window.sdnext.onStatus((status: UiStatus) => {
       setStartup((prev) => ({ ...prev, status }));
       setBusy(isBusyStatus(status));
+      // clear browser URL whenever app isn't ready/running
+      if (!status.startsWith('Ready')) {
+        setBrowserUrl('');
+      }
       // If status is now has package name (Installing: XXX), it came from main process and should override local parsing
       if (status.startsWith('Installing:')) {
         setInstallStatusOverride(null); // Use the main process status
@@ -435,6 +491,11 @@ export function App() {
       setConfig({ ...loadedConfig, wipe: false });
       // Set theme preference from config (default to 'system' if not set)
       setThemePreference(loadedConfig.theme ?? 'system');
+      // automatically show tutorial if not disabled
+      if (loadedConfig.showTutorial !== false) {
+        setTutorialRunning(true);
+        setTutorialStep(0);
+      }
     });
 
     return () => {
@@ -530,7 +591,7 @@ export function App() {
       startup.status === 'Cloning repository...' ||
       startup.status === 'Creating VENV...' ||
       startup.status === 'Installing dependencies...' ||
-      startup.status === 'Starting...' ||
+      startup.status === STATUS.LAUNCHING ||
       startup.status === 'Running...' ||
       isReadyStatus
     );
@@ -743,8 +804,8 @@ export function App() {
     }
   };
 
-  const start = async (): Promise<void> => {
-    setActiveAction('start');
+  const launch = async (): Promise<void> => {
+    setActiveAction('launch');
     setBusy(true);
     setTerminalLines([]);
     setTorchBackendInfo('Checking...');
@@ -754,9 +815,9 @@ export function App() {
       const effectiveConfig = config.backend === 'autodetect' 
         ? { ...config, backend: startup.recommendedBackend }
         : config;
-      await window.sdnext.start(effectiveConfig, terminalDimensions);
+      await window.sdnext.launch(effectiveConfig, terminalDimensions);
     } finally {
-      setActiveAction((prev) => (prev === 'start' ? 'idle' : prev));
+      setActiveAction((prev) => (prev === 'launch' ? 'idle' : prev));
     }
   };
 
@@ -887,6 +948,99 @@ export function App() {
     await window.sdnext.saveConfig(updatedConfig);
   };
 
+  // --- Tutorial helpers --------------------------------------------------
+  const stopTutorial = useCallback((): void => {
+    setTutorialRunning(false);
+    setTutorialStep(0);
+    if (tutorialTimerRef.current !== null) {
+      clearTimeout(tutorialTimerRef.current);
+      tutorialTimerRef.current = null;
+    }
+    toast.dismiss();
+    // remove any remaining highlights
+    document.querySelectorAll('.tutorial-highlight').forEach(el => el.classList.remove('tutorial-highlight'));
+  }, []);
+
+  const disableTutorial = useCallback(async (): Promise<void> => {
+    const updatedConfig = { ...config, showTutorial: false };
+    setConfig(updatedConfig);
+    await window.sdnext.saveConfig(updatedConfig);
+    stopTutorial();
+  }, [config, stopTutorial]);
+
+  const showTutorialStep = useCallback((step: number): void => {
+    toast.dismiss();
+
+    // clear any existing highlights
+    document.querySelectorAll('.tutorial-highlight').forEach(el => el.classList.remove('tutorial-highlight'));
+
+    // highlight target element if specified
+    const sel = TUTORIAL_DATA[step].selector;
+    if (sel) {
+      const el = document.querySelector(sel);
+      if (el instanceof HTMLElement) {
+        el.classList.add('tutorial-highlight');
+      }
+    }
+
+    const content = (
+      <div style={{ maxWidth: 380, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <p>{TUTORIAL_DATA[step].text}</p>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+          <button
+            className="btn ghost"
+            disabled={step === 0}
+            onClick={() => setTutorialStep((p) => Math.max(p - 1, 0))}
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <button className="btn ghost" onClick={stopTutorial}>
+            <X size={16} />
+          </button>
+          <button className="btn ghost" onClick={() => setTutorialStep((p) => Math.min(p + 1, TUTORIAL_DATA.length - 1))}>
+            <ChevronRight size={16} />
+          </button>
+        </div>
+        <div style={{ marginTop: 6, fontSize: 12 }}>
+          <label>
+            <input
+              type="checkbox"
+              checked={config.showTutorial === false}
+              onChange={() => void disableTutorial()}
+            />{' '}
+            Don't show again
+          </label>
+        </div>
+      </div>
+    );
+
+    toast.custom(() => content, { duration: Infinity, className: 'custom' });
+
+    // schedule auto‑advance
+    if (tutorialTimerRef.current !== null) {
+      clearTimeout(tutorialTimerRef.current);
+    }
+    tutorialTimerRef.current = window.setTimeout(() => {
+      setTutorialStep((p) => Math.min(p + 1, TUTORIAL_DATA.length - 1));
+    }, 10000);
+  }, [disableTutorial, stopTutorial]);
+
+  const startTutorial = (force = false): void => {
+    // if forced (manual click) ignore disable flag, otherwise respect config
+    if (!force && config.showTutorial === false) {
+      return;
+    }
+    setTutorialRunning(true);
+    setTutorialStep(0);
+  };
+
+  // trigger toast whenever step/running state changes
+  useEffect(() => {
+    if (tutorialRunning) {
+      showTutorialStep(tutorialStep);
+    }
+  }, [tutorialStep, tutorialRunning, showTutorialStep]);
+
   useEffect(() => {
     if (activeTab !== 'changelog') {
       return;
@@ -945,6 +1099,8 @@ export function App() {
 
   return (
     <div className="app-shell">
+      {tutorialRunning && <div className="tutorial-dim" />}
+      <Toaster />
       <div className="hero">
         <div className="brand">
           {logoSrc ? (
@@ -1070,13 +1226,26 @@ export function App() {
           <Package size={16} aria-hidden="true" />
         </button>
         <button 
-          className={`icon-btn action-btn ${activeAction === 'start' ? 'is-running' : ''}`}
-          onClick={start} 
+          className={`icon-btn action-btn ${activeAction === 'launch' ? 'is-running' : ''}`}
+          onClick={launch} 
           disabled={busy || isInitializing || !bootstrapComplete || !startup.installed}
-          title={!bootstrapComplete ? 'Start: Install required first' : !startup.installed ? 'Start: Not installed' : 'Start application'}
-          aria-label="Start"
+          title={!bootstrapComplete ? 'Launch: Install required first' : !startup.installed ? 'Launch: Not installed' : 'Launch application'}
+          aria-label="Launch"
         >
           <Play size={16} aria-hidden="true" />
+        </button>
+        <button
+          className="icon-btn action-btn"
+          onClick={() => {
+            if (browserUrl) {
+              void window.sdnext.openExternal(browserUrl);
+            }
+          }}
+          disabled={!browserUrl || !startup.status.startsWith('Ready')}
+          title={browserUrl ? `Open browser to ${browserUrl}` : 'Open browser (not available)'}
+          aria-label="Open browser"
+        >
+          <Chromium size={14} aria-hidden="true" />
         </button>
         <button
           className="icon-btn action-btn danger"
@@ -1110,6 +1279,24 @@ export function App() {
           {advancedOpen ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
           <SlidersHorizontal size={16} aria-hidden="true" />
           Options
+        </button>
+        <button
+          className="btn ghost"
+          type="button"
+          onClick={() => startTutorial(true)}
+          title="Show tutorial"
+          aria-label="Tutorial"
+        >
+          <Info size={16} aria-hidden="true" />
+        </button>
+        <button
+          className="btn ghost"
+          type="button"
+          onClick={toggleTheme}
+          title="Switch theme"
+          aria-label="Switch theme"
+        >
+          {isDarkTheme ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />}
         </button>
       </div>
 
@@ -1328,7 +1515,7 @@ export function App() {
             <ProgressBar
               gitFiles={extractionProgress.gitFiles}
               pythonFiles={extractionProgress.pythonFiles}
-              isVisible={isBootstrapping}
+              isVisible={isBootstrapping && activeAction === 'bootstrap'}
               isComplete={startup.status === 'Bootstrap complete'}
             />
             <ProgressBar

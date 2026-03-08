@@ -9,11 +9,11 @@ declare global {
       saveConfig: (config: SdNextConfig) => Promise<SdNextConfig>;
       browseDirectory: () => Promise<string | null>;
       install: (config: SdNextConfig, options: InstallOptions, terminalDimensions?: TerminalDimensions) => Promise<{ success: boolean; code: number }>;
-      start: (config: SdNextConfig, terminalDimensions?: TerminalDimensions) => Promise<{ success: boolean; code: number }>;
+      launch: (config: SdNextConfig, terminalDimensions?: TerminalDimensions) => Promise<{ success: boolean; code: number }>;
       stop: () => Promise<{ success: boolean }>;
       exit: () => Promise<{ success: boolean }>;
-      readLog: (kind: 'install' | 'start', config: SdNextConfig) => Promise<{ exists: boolean; path: string; content: string }>;
-      openLog: (kind: 'install' | 'start', config: SdNextConfig) => Promise<{ success: boolean; message: string }>;
+      readLog: (kind: 'install' | 'launch', config: SdNextConfig) => Promise<{ exists: boolean; path: string; content: string }>;
+      openLog: (kind: 'install' | 'launch', config: SdNextConfig) => Promise<{ success: boolean; message: string }>;
       openExternal: (url: string) => Promise<{ success: boolean; message?: string }>;
       wipePath: (installationPath: string, target: 'venv' | 'bin' | 'app') => Promise<{ success: boolean; path: string; message?: string }>;
       getVersionInfo: (installationPath: string) => Promise<{ appVersion: string; commitHash: string; commitDate: string; branch: string }>;

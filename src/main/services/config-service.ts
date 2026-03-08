@@ -39,6 +39,7 @@ const ConfigSchema = z.object({
   customEnvironment: z.string(),
   gitRetryCount: z.number().int().min(0).max(10).default(3).optional(),
   theme: z.enum(['system', 'dark', 'light']).default('system').optional(),
+  showTutorial: z.boolean().default(true).optional(),
   windowState: z.object({
     width: z.number().int().min(720),
     height: z.number().int().min(480),
@@ -63,6 +64,7 @@ function defaults(): SdNextConfig {
     customEnvironment: '',
     gitRetryCount: 3,
     theme: 'system',
+    showTutorial: true,
     windowState: undefined,
   };
 }

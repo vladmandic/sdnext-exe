@@ -9,7 +9,7 @@ import { getLogoPath, isBootstrapAvailable } from './services/runtime-paths';
 import { readInstalledVersion } from './services/version-service';
 import { ProcessRunner } from './services/process-runner';
 import { runInstallWorkflow } from './services/install-workflow';
-import { runStartWorkflow } from './services/start-workflow';
+import { runLaunchWorkflow } from './services/launch-workflow';
 import {
   isBootstrapComplete,
   getBootstrapError,
@@ -45,7 +45,7 @@ let lastBackgroundChecksAt = 0;
 const BACKGROUND_CHECK_DEDUPE_MS = 2000;
 
 // Operation lock to prevent parallel install/start/bootstrap operations
-let operationInProgress: 'bootstrap' | 'install' | 'start' | null = null;
+let operationInProgress: 'bootstrap' | 'install' | 'launch' | null = null;
 
 /**
  * Retrieves cached GPU detection results or performs detection if not cached
@@ -96,7 +96,7 @@ function emitExtractionProgress(progress: ExtractionProgressEvent): void {
  * @param config - The sdnext configuration containing installation path
  * @returns The full path to the log file
  */
-function getLogPath(kind: 'install' | 'start', config: SdNextConfig): string {
+function getLogPath(kind: 'install' | 'launch', config: SdNextConfig): string {
   const appPath = path.join(config.installationPath, 'app');
   return path.join(appPath, kind === 'install' ? 'install.log' : 'sdnext.log');
 }
@@ -562,23 +562,23 @@ export function registerIpc(window: BrowserWindow): void {
   });
 
   /**
-   * Handler: launcher:start
-   * Starts the SD.Next web UI server
+   * Handler: launcher:launch
+   * Starts the SD.Next web UI server (launch workflow)
    * @param payload - Contains config and optional terminal dimensions
    * @returns Promise resolving to success status and exit code
    */
-  ipcMain.handle('launcher:start', async (_event, payload: { config: SdNextConfig; terminalDimensions?: TerminalDimensions }) => {
-    const timerId = `start-workflow-${Date.now()}`;
+  ipcMain.handle('launcher:launch', async (_event, payload: { config: SdNextConfig; terminalDimensions?: TerminalDimensions }) => {
+    const timerId = `launch-workflow-${Date.now()}`;
     debugTimer(timerId);
-    debugLog('ipc', '[START] launcher:start invoked', { backend: payload.config.backend, repositoryBranch: payload.config.repositoryBranch });
+    debugLog('ipc', '[LAUNCH] launcher:launch invoked', { backend: payload.config.backend, repositoryBranch: payload.config.repositoryBranch });
     
     // Prevent parallel operations
     if (operationInProgress) {
-      debugLog('ipc', '[START] Operation already in progress', { operation: operationInProgress });
-      return { success: false, code: 1, message: `Cannot start while ${operationInProgress} is in progress` };
+      debugLog('ipc', '[LAUNCH] Operation already in progress', { operation: operationInProgress });
+      return { success: false, code: 1, message: `Cannot launch while ${operationInProgress} is in progress` };
     }
     
-    operationInProgress = 'start';
+    operationInProgress = 'launch';
     const config = saveConfig(payload.config);
     setStatus(STATUS.INITIALIZING as UiStatus);
     let startupTimeBuffer = '';
@@ -586,8 +586,8 @@ export function registerIpc(window: BrowserWindow): void {
     let readyStatusEmitted = false;
 
     try {
-      debugLog('ipc', '[START] Starting application workflow...');
-      const code = await runStartWorkflow(
+      debugLog('ipc', '[LAUNCH] Starting application workflow...');
+      const code = await runLaunchWorkflow(
         runner,
         config,
         (text, isError) => {
@@ -611,32 +611,32 @@ export function registerIpc(window: BrowserWindow): void {
 
           if (!startingStatusEmitted && /starting\s*module/.test(startupTimeBuffer)) {
             startingStatusEmitted = true;
-            debugLog('ipc', '[START] Module start marker detected, setting Starting status');
-            setStatus(STATUS.STARTING as UiStatus);
+            debugLog('ipc', '[LAUNCH] Module start marker detected, setting Launching status');
+            setStatus(STATUS.LAUNCHING as UiStatus);
           }
 
           if (/startup\s*time/.test(startupTimeBuffer)) {
             readyStatusEmitted = true;
-            debugLog('ipc', '[START] Startup marker detected, setting Ready status');
+            debugLog('ipc', '[LAUNCH] Startup marker detected, setting Ready status');
             setStatus(STATUS.READY as UiStatus);
           }
         },
         payload.terminalDimensions,
       );
-      debugLog('ipc', '[START] Start workflow completed', { code });
+      debugLog('ipc', '[LAUNCH] Launch workflow completed', { code });
       debugTimerEnd(timerId);
       
       // Always reset to Idle when process terminates, regardless of exit code
       setStatus(STATUS.IDLE as UiStatus);
       
       if (code !== 0) {
-        debugLog('ipc', '[START] Start failed with error', { code });
+        debugLog('ipc', '[LAUNCH] Launch failed with error', { code });
         emitTerminal(`\n[error] Process exited with code ${code}\n`, true);
         return { success: false, code };
       }
       return { success: true, code };
     } catch (error) {
-      debugLog('ipc', '[START] Start workflow failed', error);
+      debugLog('ipc', '[LAUNCH] Launch workflow failed', error);
       debugTimerEnd(timerId);
       setStatus(STATUS.IDLE as UiStatus);
       emitTerminal(`\n[error] ${getErrorMessage(error)}\n`, true);
@@ -691,11 +691,11 @@ export function registerIpc(window: BrowserWindow): void {
 
   /**
    * Handler: launcher:read-log
-   * Reads the content of a log file (install or start)
+   * Reads the content of a log file (install or launch)
    * @param payload - Contains log kind and config with installation path
    * @returns Promise resolving to log file existence status, path, and content
    */
-  ipcMain.handle('launcher:read-log', async (_event, payload: { kind: 'install' | 'start'; config: SdNextConfig }) => {
+  ipcMain.handle('launcher:read-log', async (_event, payload: { kind: 'install' | 'launch'; config: SdNextConfig }) => {
     debugLog('ipc', 'launcher:read-log invoked', { kind: payload.kind });
     const filePath = getLogPath(payload.kind, payload.config);
     if (!fs.existsSync(filePath)) {
@@ -710,7 +710,7 @@ export function registerIpc(window: BrowserWindow): void {
    * @param payload - Contains log kind and config with installation path
    * @returns Promise resolving to success status and optional error message
    */
-  ipcMain.handle('launcher:open-log', async (_event, payload: { kind: 'install' | 'start'; config: SdNextConfig }) => {
+  ipcMain.handle('launcher:open-log', async (_event, payload: { kind: 'install' | 'launch'; config: SdNextConfig }) => {
     debugLog('ipc', 'launcher:open-log invoked', { kind: payload.kind });
     const filePath = getLogPath(payload.kind, payload.config);
     if (!fs.existsSync(filePath)) {
@@ -730,9 +730,29 @@ export function registerIpc(window: BrowserWindow): void {
    * @returns Promise resolving to success status and optional error message
    */
   ipcMain.handle('launcher:open-external', async (_event, payload: { url: string }) => {
-    debugLog('ipc', 'launcher:open-external invoked', { url: payload.url });
+    let url = payload.url.trim();
+    // strip ANSI sequences which may sneak in from logs
+    const ANSI_ESCAPE_RE = /[\u001B\u009B][[\]()#;?]*(?:(?:[a-zA-Z\d]*(?:;[a-zA-Z\d]*)*)?\u0007|(?:\d{1,4}(?:;\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~])/g;
+    url = url.replace(ANSI_ESCAPE_RE, '').trim();
+
+    debugLog('ipc', 'launcher:open-external invoked', { url });
+    // automatically prepend http if scheme missing
+    if (url && !/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(url)) {
+      url = 'http://' + url;
+      debugLog('ipc', 'added http scheme to url', { url });
+    }
     try {
-      await shell.openExternal(payload.url);
+      // simple validation: only allow http/https
+      const parsed = new URL(url);
+      if (!/^https?:$/.test(parsed.protocol)) {
+        throw new Error('Unsupported protocol: ' + parsed.protocol);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { success: false, message: 'Invalid URL: ' + msg };
+    }
+    try {
+      await shell.openExternal(url);
       return { success: true };
     } catch (error) {
       const message = getErrorMessage(error);

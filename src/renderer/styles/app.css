@@ -20,6 +20,9 @@
   --shadow-md: -4px -4px 12px rgba(255, 255, 255, 0.08), 4px 4px 12px rgba(0, 0, 0, 0.4);
   --shadow-sm: -2px -2px 6px rgba(255, 255, 255, 0.06), 2px 2px 6px rgba(0, 0, 0, 0.3);
   --shadow-inset: inset -2px -2px 6px rgba(255, 255, 255, 0.05), inset 2px 2px 6px rgba(0, 0, 0, 0.4);
+
+  /* make toast offset-right larger (default 24px doubled) */
+  --offset-right: 48px;
 }
 
 * {
@@ -30,10 +33,7 @@ body {
   margin: 0;
   font-family: "Noto Sans", "Segoe UI", sans-serif;
   color: var(--text);
-  background:
-    radial-gradient(1200px 600px at 15% -5%, rgba(71, 133, 133, 0.18), transparent 70%),
-    radial-gradient(900px 420px at 100% 0%, rgba(71, 133, 133, 0.12), transparent 60%),
-    linear-gradient(180deg, #1c1c1c 0%, var(--bg-main) 100%);
+  background: linear-gradient(65deg, #151515 0%, #2a2a2a 100%);
   min-height: 100vh;
 }
 
@@ -287,15 +287,58 @@ body,
   transition: color 120ms ease;
 }
 
+/* tutorial overlay and highlight */
+.tutorial-dim {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.4);
+  z-index: 900;
+  pointer-events: none;
+}
+
+.tutorial-highlight {
+  position: relative;
+  z-index: 1001;
+  box-shadow: 0 0 0 3px var(--accent-strong);
+}
+
+/* toast custom appearance */
+[data-sonner-toast].custom {
+  /* use panel color for neomorphic look */
+  background: var(--panel) !important;
+  color: var(--text) !important;
+  width: 380px !important;
+
+  /* allow variable height */
+  max-height: 240px !important;
+  padding: 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  box-shadow: var(--shadow-md) !important;
+  border-radius: 20px !important;
+  border: 1px solid var(--border) !important;
+  right: 24px;
+}
+
 .btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
   transform: none;
   filter: grayscale(25%);
-  box-shadow: inset -1px -1px 3px rgba(255, 255, 255, 0.02), inset 1px 1px 3px rgba(0, 0, 0, 0.35);
 }
 
-.btn:hover:not(:disabled) {
+
+.sonner-container {
+  bottom: 40px !important;
+  right: calc(var(--offset-right, 24px) * 2) !important;
+}
+
+.btn:hover:not(:disabled), .btn:focus-visible:not(:disabled) {
+  outline: none;
   background: linear-gradient(135deg, var(--accent-strong) 0%, var(--accent-strong) 100%);
   transform: translateY(-3px) scale(1.02);
   box-shadow: -8px -8px 20px rgba(255, 255, 255, 0.12), 10px 12px 24px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(255, 255, 255, 0.05);
@@ -317,7 +360,8 @@ body,
   box-shadow: -3px -3px 10px rgba(255, 255, 255, 0.08), 3px 3px 10px rgba(0, 0, 0, 0.35);
 }
 
-.btn.ghost:hover:not(:disabled) {
+.btn.ghost:hover:not(:disabled), .btn.ghost:focus-visible:not(:disabled) {
+  outline: none;
   background: linear-gradient(135deg, #333333 0%, #1f2022 100%);
   transform: translateY(-2px) scale(1.015);
   box-shadow: -6px -6px 16px rgba(255, 255, 255, 0.12), 8px 8px 18px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
@@ -619,7 +663,8 @@ body,
   padding: 0;
 }
 
-.icon-btn:hover:not(:disabled) {
+.icon-btn:hover:not(:disabled), .icon-btn:focus-visible:not(:disabled) {
+  outline: none;
   background: linear-gradient(135deg, #2d2f31 0%, #333333 100%);
   transform: translateY(-2px) scale(1.04);
   box-shadow: -5px -5px 12px rgba(255, 255, 255, 0.1), 7px 7px 14px rgba(0, 0, 0, 0.46), 0 0 0 1px rgba(255, 255, 255, 0.06);
@@ -1040,7 +1085,8 @@ html[data-theme="light"] .icon-btn {
   border: 1px solid rgba(203, 211, 220, 0.3);
 }
 
-html[data-theme="light"] .icon-btn:hover:not(:disabled) {
+html[data-theme="light"] .icon-btn:hover:not(:disabled), html[data-theme="light"] .icon-btn:focus-visible:not(:disabled) {
+  outline: none;
   background: linear-gradient(135deg, #ffffff 0%, #f8fafb 100%);
   box-shadow: -3px -3px 10px rgba(255, 255, 255, 0.9), 5px 5px 12px rgba(71, 85, 105, 0.15), 0 0 0 1px rgba(13, 148, 136, 0.1);
 }

@@ -77,7 +77,7 @@ export type UiStatus =
   | `Installing: ${string}`
   | 'Cloning repository...'
   | 'Creating VENV...'
-  | 'Starting...'
+  | 'Launching...'
   | 'Running...'
   | 'Ready...'
   | `Error: ${string}`;
@@ -111,6 +111,12 @@ export interface SdNextConfig {
     x?: number;
     y?: number;
   };
+  /**
+   * Whether the onboarding tutorial should be shown on startup or when the user
+   * clicks the tutorial button.  Defaults to true.  When set to false the
+   * tutorial will never display automatically (the button may still be used).
+   */
+  showTutorial?: boolean;
 }
 
 export interface InstallOptions {

@@ -9,12 +9,12 @@ const api = {
   browseDirectory: (): Promise<string | null> => ipcRenderer.invoke('launcher:browse-directory'),
   install: (config: SdNextConfig, options: InstallOptions, terminalDimensions?: TerminalDimensions): Promise<{ success: boolean; code: number }> =>
     ipcRenderer.invoke('launcher:install', { config, options, terminalDimensions }),
-  start: (config: SdNextConfig, terminalDimensions?: TerminalDimensions): Promise<{ success: boolean; code: number }> => ipcRenderer.invoke('launcher:start', { config, terminalDimensions }),
+  launch: (config: SdNextConfig, terminalDimensions?: TerminalDimensions): Promise<{ success: boolean; code: number }> => ipcRenderer.invoke('launcher:launch', { config, terminalDimensions }),
   stop: (): Promise<{ success: boolean }> => ipcRenderer.invoke('launcher:stop'),
   exit: (): Promise<{ success: boolean }> => ipcRenderer.invoke('launcher:exit'),
-  readLog: (kind: 'install' | 'start', config: SdNextConfig): Promise<{ exists: boolean; path: string; content: string }> =>
+  readLog: (kind: 'install' | 'launch', config: SdNextConfig): Promise<{ exists: boolean; path: string; content: string }> =>
     ipcRenderer.invoke('launcher:read-log', { kind, config }),
-  openLog: (kind: 'install' | 'start', config: SdNextConfig): Promise<{ success: boolean; message: string }> =>
+  openLog: (kind: 'install' | 'launch', config: SdNextConfig): Promise<{ success: boolean; message: string }> =>
     ipcRenderer.invoke('launcher:open-log', { kind, config }),
   openExternal: (url: string): Promise<{ success: boolean; message?: string }> =>
     ipcRenderer.invoke('launcher:open-external', { url }),

@@ -28,7 +28,7 @@ export const IPC_CHANNELS = {
   SAVE_CONFIG: 'launcher:save-config',
   BROWSE_DIRECTORY: 'launcher:browse-directory',
   INSTALL: 'launcher:install',
-  START: 'launcher:start',
+  LAUNCH: 'launcher:launch',
   STOP: 'launcher:stop',
   EXIT: 'launcher:exit',
   READ_LOG: 'launcher:read-log',
@@ -78,7 +78,7 @@ export interface IpcInvokeChannels {
     };
     return: { success: boolean; code: number };
   };
-  [IPC_CHANNELS.START]: {
+  [IPC_CHANNELS.LAUNCH]: {
     params: {
       config: SdNextConfig;
       terminalDimensions?: TerminalDimensions;
@@ -95,14 +95,14 @@ export interface IpcInvokeChannels {
   };
   [IPC_CHANNELS.READ_LOG]: {
     params: {
-      kind: 'install' | 'start';
+      kind: 'install' | 'launch';
       config: SdNextConfig;
     };
     return: { exists: boolean; path: string; content: string };
   };
   [IPC_CHANNELS.OPEN_LOG]: {
     params: {
-      kind: 'install' | 'start';
+      kind: 'install' | 'launch';
       config: SdNextConfig;
     };
     return: { success: boolean; message: string };

@@ -8,7 +8,7 @@ export const STATUS = {
   BOOTSTRAPPING: 'Bootstrapping...' as const,
   BOOTSTRAP_COMPLETE: 'Bootstrap complete' as const,
   INITIALIZING: 'Initializing...' as const,
-  STARTING: 'Starting...' as const,
+  LAUNCHING: 'Launching...' as const,
   READY: 'Ready...' as const,
   
   // Bootstrap sub-statuses (used in renderer)

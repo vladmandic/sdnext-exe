@@ -7,13 +7,13 @@ import { ensurePortableRuntimes } from './portable-bootstrap';
 import { debugLog } from './debug';
 import { splitParameters, buildProcessEnvironment, runGit, getCurrentBranch } from './workflow-common';
 
-export async function runStartWorkflow(
+export async function runLaunchWorkflow(
   runner: ProcessRunner,
   config: SdNextConfig,
   onOutput: (text: string, isError?: boolean) => void,
   terminalDimensions?: TerminalDimensions,
 ): Promise<number> {
-  debugLog('start', 'runStartWorkflow invoked', {
+  debugLog('launch', 'runLaunchWorkflow invoked', {
     installationPath: config.installationPath,
     modelsPath: config.modelsPath,
     branch: config.repositoryBranch,
@@ -25,17 +25,17 @@ export async function runStartWorkflow(
   const venvPython = getVenvPythonPath(config.installationPath);
 
   if (!fs.existsSync(venvPython)) {
-    debugLog('start', 'Missing venv python executable', { venvPython });
+    debugLog('launch', 'Missing venv python executable', { venvPython });
     throw new Error('Application is not installed: /venv is missing. Run installer first.');
   }
 
   const currentBranch = getCurrentBranch(appPath);
   if (currentBranch === config.repositoryBranch) {
     onOutput(`[git] Already on branch ${config.repositoryBranch}, skipping checkout\n`);
-    debugLog('start', 'Already on target branch, skipping checkout', { branch: config.repositoryBranch });
+    debugLog('launch', 'Already on target branch, skipping checkout', { branch: config.repositoryBranch });
   } else {
     onOutput(`[git] Checking out branch ${config.repositoryBranch}\n`);
-    debugLog('start', 'Checking out branch', { branch: config.repositoryBranch, currentBranch: currentBranch ?? 'unknown' });
+    debugLog('launch', 'Checking out branch', { branch: config.repositoryBranch, currentBranch: currentBranch ?? 'unknown' });
     runGit(['-C', appPath, 'checkout', config.repositoryBranch], onOutput);
   }
 
@@ -50,7 +50,7 @@ export async function runStartWorkflow(
     args.push('--listen');
   }
   args.push(...splitParameters(config.customParameters));
-  debugLog('start', 'Launching start python command', { args, appPath });
+  debugLog('launch', 'Launching start python command', { args, appPath });
 
   return runner.run({
     command: venvPython,
