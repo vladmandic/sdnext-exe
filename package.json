@@ -23,9 +23,9 @@
     "audit": "npm audit --json",
     "clean": "@powershell -NoProfile -ExecutionPolicy Bypass -Command \"Remove-Item -Path dist -Recurse -Force -ErrorAction SilentlyContinue\"",
     "package": "npm run package:exe && npm run package:dir",
-    "package:exe": "npm run build && electron-builder --win --portable",
+    "package:exe": "npm run build && electron-builder --win --exe",
     "package:dir": "npm run build && electron-builder --win --dir && node scripts/zip-dir.js",
-    "publish": "npm version patch && npm run package && gh release create v${npm_package_version} dist/${npm_package_name}-${npm_package_version}.exe dist/${npm_package_name}-${npm_package_version}.zip --title \"SD.Next ${npm_package_version}\" --notes \"Release ${npm_package_version}\" --prerelease"
+    "publish": "npm version patch && npm run clean && npm run package && gh release create v${npm_package_version} dist/${npm_package_name}-${npm_package_version}.exe dist/${npm_package_name}-${npm_package_version}.zip --title \"SD.Next ${npm_package_version}\" --notes \"Release ${npm_package_version}\" --prerelease"
   },
   "dependencies": {
     "@fontsource/noto-sans": "^5.2.10",
