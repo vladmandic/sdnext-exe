@@ -31,7 +31,6 @@ let status: UiStatus = STATUS.IDLE as UiStatus;
 let handlersRegistered = false;
 let activeWindow: BrowserWindow | null = null;
 let stopRequested = false;
-let trayUpdateFn: ((status: string) => void) | null = null;
 let cachedGPUDetection: GPUDetectionResult | null = null;
 let cachedVersionUpdate: { installed: boolean; version: string } | null = null;
 let cachedToolsUpdate: {
@@ -66,11 +65,6 @@ function setStatus(nextStatus: UiStatus): void {
   debugLog('ipc', 'Status update', { from: status, to: nextStatus });
   status = nextStatus;
   activeWindow?.webContents.send('launcher:status', status);
-  
-  // Update tray status if available
-  if (trayUpdateFn) {
-    trayUpdateFn(nextStatus);
-  }
 }
 
 /**
@@ -101,13 +95,6 @@ function getLogPath(kind: 'install' | 'launch', config: SdNextConfig): string {
   return path.join(appPath, kind === 'install' ? 'install.log' : 'sdnext.log');
 }
 
-/**
- * Sets the callback function for updating tray icon tooltip
- * @param fn - Callback function that receives status updates
- */
-export function setTrayUpdateFunction(fn: (status: string) => void): void {
-  trayUpdateFn = fn;
-}
 
 /**
  * Registers all IPC handlers for main-renderer communication

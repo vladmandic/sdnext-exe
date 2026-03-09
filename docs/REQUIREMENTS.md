@@ -1026,10 +1026,14 @@ sdnext-exe/
     "typecheck": "tsc -p tsconfig.electron.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
     "lint": "npm run lint:ts && npm run lint:css",
     
-    "package": "npm run build && electron-builder --win portable"
+    "package": "npm run build && electron-builder --win portable",
+    "package:dir": "npm run build && electron-builder --win --dir && node scripts/zip-dir.js"  
+    "publish": "npm run package && npm run package:dir && gh release create v${npm_package_version} dist/${npm_package_name}-${npm_package_version}.exe dist/${npm_package_name}-${npm_package_version}.zip --title \"SD.Next ${npm_package_version}\" --notes \"Release ${npm_package_version}\""  
   }
 }
 ```
+
+The `publish` script leverages the GitHub CLI (`gh`) once packaging is complete. Before building it bumps the patch version using `npm version patch`, updating `package.json` (and creating a git commit/tag). It then runs both `package` (installer) and `package:dir` (unzipped/zip) builds, and creates a **prerelease** named `v<version>` attaching the portable `SD.Next.exe` and the generated zip archive. Ensure `gh` is logged in and you have push rights to the repository.
 
 ### electron-builder Configuration
 

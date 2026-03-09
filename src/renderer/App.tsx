@@ -524,6 +524,9 @@ export function App() {
   }, [startup.status]);
 
   // Fetch version info when installation path and tool availability allow it
+  // If Git is not yet available we should *not* claim we're "Checking updates"; that
+  // message only makes sense when we can talk to GitHub.  Setting the status to
+  // up-to-date quiets the update chip until a real check happens.
   useEffect(() => {
     if (!config.installationPath) {
       return;
@@ -531,6 +534,8 @@ export function App() {
 
     const gitReady = startup.tools.git !== 'N/A' && startup.tools.git !== 'Unavailable' && startup.tools.git !== 'Unknown';
     if (!gitReady) {
+      setUpdateStatus('up-to-date');
+      setCommitsBehind(null);
       return;
     }
 
@@ -562,10 +567,16 @@ export function App() {
   const displayStatus = useMemo(() => installStatusOverride ?? startup.status, [installStatusOverride, startup.status]);
   const isInitializing = useMemo(() => startup.status === 'Initializing...', [startup.status]);
   const isBootstrapping = useMemo(() => isBootstrapStatus(startup.status), [startup.status]);
-  const isErrorStatus = useMemo(() => displayStatus.startsWith('Error:'), [displayStatus]);
+  // some statuses are considered errors and are styled red; others (such as
+  // the bootstrap-required notice) are expected conditions and should not use
+  // the error colouring.
   const isBootstrapRequired = useMemo(
     () => startup.status.includes('unavailable') && startup.status.includes('bootstrap required'),
     [startup.status],
+  );
+  const isErrorStatus = useMemo(
+    () => displayStatus.startsWith('Error:') && !isBootstrapRequired,
+    [displayStatus, isBootstrapRequired],
   );
   const bootstrapNeeded = useMemo(() => {
     return (
@@ -611,6 +622,15 @@ export function App() {
           </span>
         </>
       );
+    }
+    if (displayStatus.includes('\n')) {
+      // split on newline and insert <br/> between lines
+      return displayStatus.split('\n').map((line, idx, arr) => (
+        <span key={idx}>
+          {line}
+          {idx < arr.length - 1 ? <br /> : null}
+        </span>
+      ));
     }
     return displayStatus;
   }, [displayStatus]);

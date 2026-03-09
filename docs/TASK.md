@@ -163,12 +163,7 @@ Create a UI that serves as installer and launcher for a complex python applicati
   - **Changelog Tab**: Fetches and displays the CHANGELOG.md from the selected repository branch using GitHub's markdown rendering API. Includes a link to view the changelog directly on GitHub. Auto-refreshes when the repository branch selection changes.
 
 ## System Tray Integration
-- Application should create a system tray icon with the following features:
-  - Display current status in the tray context menu (Idle, Bootstrapping, Installing, Running, Error states)
-  - Context menu options: Show window, Hide window, Exit application
-  - Double-click tray icon to show/focus the main window
-  - Status updates should propagate to the tray menu automatically
-  - Icon uses logo.png from application resources
+- **Removed:** system tray icon functionality was previously implemented but has since been removed from the codebase.
 
 ## Theme Support
 - Application automatically detects and follows system color scheme preference (dark/light mode)

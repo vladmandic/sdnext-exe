@@ -7,6 +7,10 @@ export const STATUS = {
   IDLE: 'Idle' as const,
   BOOTSTRAPPING: 'Bootstrapping...' as const,
   BOOTSTRAP_COMPLETE: 'Bootstrap complete' as const,
+  // Note: bootstrap-required conditions are generated dynamically via
+  // formatBootstrapRequired(), including the list of missing tools.  The
+  // returned string now contains a newline between the two parts which the
+  // renderer will convert to a <br/>.
   INITIALIZING: 'Initializing...' as const,
   LAUNCHING: 'Launching...' as const,
   READY: 'Ready...' as const,
@@ -46,7 +50,12 @@ export function formatInstallError(code: number): string {
  * @returns Formatted error string
  */
 export function formatBootstrapRequired(missingTools: string[]): string {
-  return `Error: ${missingTools.join(' & ')} unavailable | Bootstrap required`;
+  // This message is informational rather than an outright failure; it is expected
+  // on a fresh install when the bundled Git/Python runtimes haven't been unpacked yet.
+  // Removing the "Error:" prefix allows the renderer to avoid styling it as an
+  // error (see App.tsx’s `isErrorStatus` logic).
+  // Use newline separator instead of pipe so the UI can render each line clearly.
+  return `${missingTools.join(' & ')} unavailable\nBootstrap required`;
 }
 
 /**

@@ -1,10 +1,9 @@
 import path from 'node:path';
-import { app, BrowserWindow, Menu, Tray, screen } from 'electron';
-import { registerIpc, stopActiveOperation, setTrayUpdateFunction } from './ipc';
-import { getWindowIconPath, getLogoPath } from './services/runtime-paths';
+import { app, BrowserWindow, screen } from 'electron';
+import { registerIpc, stopActiveOperation } from './ipc';
+import { getWindowIconPath } from './services/runtime-paths';
 import { debugLog, isDebugEnabled, debugTimer, debugTimerEnd } from './services/debug';
 import { loadConfig, saveConfig } from './services/config-service';
-import { STATUS } from '../shared/status-constants';
 
 // Global error handlers for production robustness
 process.on('uncaughtException', (error) => {
@@ -19,9 +18,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 let mainWindow: BrowserWindow | null = null;
-let tray: Tray | null = null;
 let isQuitting = false;
-let currentStatus: string = STATUS.IDLE;
 
 interface PersistedWindowState {
   width: number;
@@ -159,7 +156,9 @@ function createMainWindow(): BrowserWindow {
     void window.loadURL(devServerUrl);
   } else {
     debugLog('main', '[WINDOW] Loading renderer from dist/index.html');
-    const htmlPath = path.join(process.cwd(), 'dist', 'index.html');
+    // when packaged or running in prod mode, app.getAppPath() is the safest base path
+    // it points inside the ASAR when packaged, or to the project root during development.
+    const htmlPath = path.join(app.getAppPath(), 'dist', 'index.html');
     debugLog('main', '[WINDOW] HTML path', { htmlPath });
     void window.loadFile(htmlPath);
   }
@@ -193,106 +192,7 @@ function createMainWindow(): BrowserWindow {
   return window;
 }
 
-function createTray(): void {
-  try {
-    // Try to use window icon (logo.png) for tray if logo path fails
-    let iconPath = getLogoPath();
-    
-    // In dev mode, use window icon as fallback since sdnext.png might not work for tray
-    if (!app.isPackaged) {
-      iconPath = getWindowIconPath();
-    }
-    
-    tray = new Tray(iconPath);
-    debugLog('main', 'Tray icon created', { iconPath });
 
-    const contextMenu = Menu.buildFromTemplate([
-    {
-      label: `Status: ${currentStatus}`,
-      enabled: false,
-    },
-    { type: 'separator' },
-    {
-      label: 'Show',
-      click: () => {
-        if (mainWindow) {
-          mainWindow.show();
-          mainWindow.focus();
-        }
-      },
-    },
-    {
-      label: 'Hide',
-      click: () => {
-        if (mainWindow) {
-          mainWindow.hide();
-        }
-      },
-    },
-    { type: 'separator' },
-    {
-      label: 'Exit',
-      click: () => {
-        isQuitting = true;
-        app.quit();
-      },
-    },
-  ]);
-
-  tray.setContextMenu(contextMenu);
-  tray.setToolTip('SD.Next');
-
-  tray.on('double-click', () => {
-    if (mainWindow) {
-      mainWindow.show();
-      mainWindow.focus();
-    }
-  });
-  } catch (error) {
-    debugLog('main', 'Tray creation failed', error);
-    console.error('[Tray] Failed to create tray icon:', error);
-    // Continue without tray - not critical for app functionality
-  }
-}
-
-function updateTrayMenu(status: string): void {
-  currentStatus = status;
-  if (tray) {
-    const contextMenu = Menu.buildFromTemplate([
-      {
-        label: `Status: ${status}`,
-        enabled: false,
-      },
-      { type: 'separator' },
-      {
-        label: 'Show',
-        click: () => {
-          if (mainWindow) {
-            mainWindow.show();
-            mainWindow.focus();
-          }
-        },
-      },
-      {
-        label: 'Hide',
-        click: () => {
-          if (mainWindow) {
-            mainWindow.hide();
-          }
-        },
-      },
-      { type: 'separator' },
-      {
-        label: 'Exit',
-        click: () => {
-          isQuitting = true;
-          app.quit();
-        },
-      },
-    ]);
-    tray.setContextMenu(contextMenu);
-  }
-}
 
 app.whenReady().then(() => {
   const appStartTimerId = 'app-startup-total';
@@ -303,23 +203,15 @@ app.whenReady().then(() => {
   // Create main window first (IPC handlers registered after)
   mainWindow = createMainWindow();
   
-  debugLog('main', '[APP] Setting up tray updates...');
-  setTrayUpdateFunction(updateTrayMenu);
-  
   debugLog('main', '[APP] Registering IPC handlers...');
   registerIpc(mainWindow);
   
-  // Create tray after IPC is set up
-  debugLog('main', '[APP] Creating tray icon...');
-  createTray();
   
   debugLog('main', '[APP] Setting up window activation handlers...');
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       mainWindow = createMainWindow();
-      setTrayUpdateFunction(updateTrayMenu);
       registerIpc(mainWindow);
-      createTray();
     }
   });
   

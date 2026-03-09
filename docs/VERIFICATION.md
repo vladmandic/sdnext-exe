@@ -451,18 +451,7 @@ This document verifies that all requirements specified in [TASK.md](TASK.md) hav
 
 ## System Tray Integration
 
-| Requirement | Implementation | Status |
-|------------|----------------|--------|
-| System tray icon | `main.ts` → Electron Tray API with logo.png | ✅ |
-| Display status in tray menu | Status item shows current state (Idle, Bootstrapping, Installing, Running, Error) | ✅ |
-| Show window option | Context menu "Show" action calls `window.show()` and `focus()` | ✅ |
-| Hide window option | Context menu "Hide" action calls `window.hide()` | ✅ |
-| Exit option | Context menu "Exit" action calls `app.quit()` | ✅ |
-| Double-click to show | Tray `double-click` event shows and focuses window | ✅ |
-| Status propagation | `setTrayUpdateFunction()` callback updates tray status automatically | ✅ |
-| Icon uses logo.png | Tray icon path resolved from `getLogoPath()` | ✅ |
-
-**Verification**: ✅ All 8 system tray requirements met
+> **Note:** The system tray feature was intentionally removed. No verification is required.
 
 ---
 

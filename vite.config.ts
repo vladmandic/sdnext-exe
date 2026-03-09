@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
 export default defineConfig({
+  base: './',
   plugins: [react()],
   server: {
     // Exclude large directories from file watching to improve HMR startup speed

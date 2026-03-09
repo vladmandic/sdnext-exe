@@ -4,7 +4,7 @@
   "description": "SD.Next Windows installer and launcher",
   "main": "dist/electron/main/main.js",
   "author": "vladmandic",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:electron:build\" \"npm:dev:electron\"",
     "dev:renderer": "vite",
@@ -21,12 +21,11 @@
     "lint:css": "stylelint \"src/**/*.css\"",
     "lint:fix": "npm run lint:ts -- --fix && npm run lint:css -- --fix",
     "audit": "npm audit --json",
-    "audit:ci": "npm audit --audit-level=moderate",
-    "benchmark:startup": "@powershell -Command \"$start = Get-Date; . {electron .}; $end = Get-Date; Write-Host \\\"Startup time: \\\"($end - $start).TotalMilliseconds\\\"ms\\\"\"",
-    "benchmark:build": "@powershell -Command \"$start = Get-Date; npm run build; $end = Get-Date; Write-Host \\\"Build time: \\\"($end - $start).TotalSeconds\\\"s\\\"\"",
-    "benchmark:package": "@powershell -Command \"$start = Get-Date; npm run package; $end = Get-Date; Write-Host \\\"Package time: \\\"($end - $start).TotalSeconds\\\"s\\\"\"",
     "clean": "@powershell -NoProfile -ExecutionPolicy Bypass -Command \"Remove-Item -Path dist -Recurse -Force -ErrorAction SilentlyContinue\"",
-    "package": "npm run build && electron-builder --win portable"
+    "package": "npm run package:exe && npm run package:dir",
+    "package:exe": "npm run build && electron-builder --win --portable",
+    "package:dir": "npm run build && electron-builder --win --dir && node scripts/zip-dir.js",
+    "publish": "npm version patch && npm run package && gh release create v${npm_package_version} dist/${npm_package_name}-${npm_package_version}.exe dist/${npm_package_name}-${npm_package_version}.zip --title \"SD.Next ${npm_package_version}\" --notes \"Release ${npm_package_version}\" --prerelease"
   },
   "dependencies": {
     "@fontsource/noto-sans": "^5.2.10",
@@ -87,10 +86,6 @@
         ]
       },
       {
-        "from": "sdnext.png",
-        "to": "sdnext.png"
-      },
-      {
         "from": "public/logo.png",
         "to": "logo.png"
       }
@@ -103,7 +98,10 @@
             "x64"
           ]
         }
-      ]
+        ]
+    },
+    "appx": {
+      "applicationId": "com.vladmandic.sdnext"
     },
     "portable": {
       "artifactName": "SD.Next-${version}.exe"

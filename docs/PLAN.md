@@ -292,16 +292,10 @@ Build a Windows-only Electron + React + TypeScript installer/launcher that uses 
         - Result: ✅ PASSED (startup verified)
       - **Status**: All TASK testing requirements executed successfully; ready for Phase 11 runtime functional testing
 
-   23. ✅ **Phase 11 - System Tray Integration** (Mar 5, 2026):
-      - ✅ Created system tray icon using Electron's Tray API in `src/main/main.ts`
-      - ✅ Implemented tray context menu with Show, Hide, Exit options
-      - ✅ Added status display in tray menu that updates with application state
-      - ✅ Integrated tray status updates via `setTrayUpdateFunction()` callback from IPC
-      - ✅ Implements double-click to show/focus main window
-      - ✅ Uses logo.png as tray icon with fallback handling for dev/packaged modes
-      - ✅ Tray remains functional even if creation fails (non-critical graceful degradation)
-      - ✅ Updated TASK.md with System Tray Integration requirements
-      - **Status**: System tray fully implemented and integrated with status updates
+   23. 🔄 **Phase 11 - System Tray Integration** (Mar 5, 2026):
+      - Initially implemented tray icon, menu, and status updates
+      - Feature later removed; code has been cleaned up accordingly
+      - **Status**: rolled back to simplify application behaviour
 
    24. ✅ **Phase 12 - Tabbed Content Panel** (Mar 5, 2026):
       - ✅ Added tab state management in `src/renderer/App.tsx` with `ContentTab` type
