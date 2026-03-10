@@ -41,7 +41,7 @@ export async function runInstallWorkflow(
   }
 
   try {
-    await ensurePortableRuntimes();
+    await ensurePortableRuntimes(false, config.installationPath);
 
     const appPath = path.join(config.installationPath, 'app');
 
@@ -51,7 +51,7 @@ export async function runInstallWorkflow(
       fs.rmSync(config.installationPath, { recursive: true, force: true });
       checkpointSvc.clearCheckpoint();
       checkpoint = checkpointSvc.createCheckpoint(config.installationPath);
-      await ensurePortableRuntimes();
+      await ensurePortableRuntimes(false, config.installationPath);
     }
 
     fs.mkdirSync(appPath, { recursive: true });
@@ -64,7 +64,7 @@ export async function runInstallWorkflow(
         onOutput(`[git] Cloning ${SDNEXT_REPO_URL}\n`);
         const retryCount = config.gitRetryCount ?? 3;
         // use shallow clone to speed up downloads
-        await runGitWithRetry(['clone', '--depth', '1', '--single-branch', '--branch', config.repositoryBranch, SDNEXT_REPO_URL, appPath], onOutput, retryCount);
+        await runGitWithRetry(['clone', '--depth', '1', '--branch', config.repositoryBranch, SDNEXT_REPO_URL, appPath], onOutput, config.installationPath, retryCount);
       }
       checkpoint = checkpointSvc.markStepCompleted(checkpoint, 'git-clone');
     } else {
@@ -80,7 +80,7 @@ export async function runInstallWorkflow(
       } else {
         onOutput(`[git] Checking out branch ${config.repositoryBranch}\n`);
         debugLog('install', 'Checking out branch', { branch: config.repositoryBranch });
-        runGit(['-C', appPath, 'checkout', config.repositoryBranch], onOutput);
+        runGit(['-C', appPath, 'checkout', config.repositoryBranch], onOutput, config.installationPath);
       }
       checkpoint = checkpointSvc.markStepCompleted(checkpoint, 'git-checkout');
     } else {
@@ -90,7 +90,7 @@ export async function runInstallWorkflow(
     // VENV Creation Step
     if (!checkpointSvc.isStepCompleted(checkpoint, 'venv-created')) {
       if (onStatus) onStatus('Creating VENV...');
-      ensureVenv(config.installationPath, getPythonExecutablePath(), onOutput);
+      ensureVenv(config.installationPath, getPythonExecutablePath(config.installationPath), onOutput);
       checkpoint = checkpointSvc.markStepCompleted(checkpoint, 'venv-created');
     } else {
       onOutput(`[install] Skipping venv creation (already completed in previous attempt)\n`);
@@ -98,7 +98,7 @@ export async function runInstallWorkflow(
 
     // Dependencies Installation Step
     if (!checkpointSvc.isStepCompleted(checkpoint, 'dependencies-installed')) {
-      const venvPython = ensureVenv(config.installationPath, getPythonExecutablePath(), onOutput);
+      const venvPython = ensureVenv(config.installationPath, getPythonExecutablePath(config.installationPath), onOutput);
       const args = ['launch.py', '--test', '--log', 'install.log'];
 
       if (config.useUv) {
@@ -141,7 +141,7 @@ export async function runInstallWorkflow(
     // Run sandbox test before marking complete
     if (!checkpointSvc.isStepCompleted(checkpoint, 'sandbox-test-passed')) {
       onOutput('[install] Running sandbox test to verify installation...\n');
-      const venvPython = ensureVenv(config.installationPath, getPythonExecutablePath(), onOutput);
+      const venvPython = ensureVenv(config.installationPath, getPythonExecutablePath(config.installationPath), onOutput);
       const testResult = runSandboxTest(venvPython);
       
       if (!testResult.healthy) {

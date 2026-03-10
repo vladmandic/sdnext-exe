@@ -124,8 +124,12 @@ export function parseCustomEnvironment(custom: string): Record<string, string> {
  * @param onOutput Callback for stdout/stderr lines
  * @throws Error if git command returns non-zero status
  */
-export function runGit(args: string[], onOutput: (text: string, isError?: boolean) => void): void {
-  const gitExe = getGitExecutablePath();
+export function runGit(
+  args: string[],
+  onOutput: (text: string, isError?: boolean) => void,
+  installationPath?: string,
+): void {
+  const gitExe = getGitExecutablePath(installationPath);
   const result = spawnSync(gitExe, args, {
     encoding: 'utf8',
     windowsHide: true,
@@ -154,6 +158,7 @@ export function runGit(args: string[], onOutput: (text: string, isError?: boolea
 export async function runGitWithRetry(
   args: string[],
   onOutput: (text: string, isError?: boolean) => void,
+  installationPath?: string,
   maxRetries: number = 3,
   initialWaitMs: number = 5000,
 ): Promise<void> {
@@ -161,7 +166,7 @@ export async function runGitWithRetry(
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      runGit(args, onOutput);
+      runGit(args, onOutput, installationPath);
       return; // Success - exit early
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
@@ -185,9 +190,9 @@ export async function runGitWithRetry(
  * @param repoPath Path to git repository
  * @returns Current branch name, or null if unable to determine
  */
-export function getCurrentBranch(repoPath: string): string | null {
+export function getCurrentBranch(repoPath: string, installationPath?: string): string | null {
   try {
-    const gitExe = getGitExecutablePath();
+    const gitExe = getGitExecutablePath(installationPath);
     const result = spawnSync(gitExe, ['-C', repoPath, 'rev-parse', '--abbrev-ref', 'HEAD'], {
       encoding: 'utf8',
       windowsHide: true,
@@ -213,8 +218,8 @@ export function buildProcessEnvironment(config: SdNextConfig): NodeJS.ProcessEnv
   const extraEnv = parseCustomEnvironment(config.customEnvironment);
   const baseEnv = { ...process.env, ...extraEnv };
 
-  const exeDir = path.dirname(getGitExecutablePath());
-  const pythonDir = path.dirname(getPythonExecutablePath());
+  const exeDir = path.dirname(getGitExecutablePath(config.installationPath));
+  const pythonDir = path.dirname(getPythonExecutablePath(config.installationPath));
   // Use semicolon on Windows, colon on Unix
   const pathSeparator = process.platform === 'win32' ? ';' : ':';
   baseEnv.PATH = `${exeDir}${pathSeparator}${pythonDir}${pathSeparator}${baseEnv.PATH ?? ''}`;

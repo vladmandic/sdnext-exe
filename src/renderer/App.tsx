@@ -785,7 +785,7 @@ export function App() {
     setBusy(true);
     setTerminalLines([]);
     try {
-      await window.sdnext.startBootstrap();
+      await window.sdnext.startBootstrap(config.installationPath);
       // Poll for completion and keep bootstrap button visually pressed while active.
       await new Promise<void>((resolve, reject) => {
         let pollInterval: ReturnType<typeof setInterval> | null = null;

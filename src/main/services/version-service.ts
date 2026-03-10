@@ -10,7 +10,7 @@ export function readInstalledVersion(installationPath: string): InstalledVersion
     return null;
   }
 
-  const gitExe = getGitExecutablePath();
+  const gitExe = getGitExecutablePath(installationPath);
   if (!fs.existsSync(gitExe)) {
     return null;
   }

@@ -5,11 +5,11 @@ import type { UiStatus, ExtractionProgressEvent } from '../../shared/types';
 import {
   getBundledGitZipPath,
   getBundledPythonZipPath,
-  getDefaultBinaryPath,
   getFallbackGitExecutablePath,
   getFallbackPythonExecutablePath,
   getPrimaryGitExecutablePath,
   getPrimaryPythonExecutablePath,
+  getBinaryPath,
 } from './runtime-paths';
 import { debugLog } from './debug';
 
@@ -70,7 +70,7 @@ export function setBootstrapProgressCallback(callback: (progress: ExtractionProg
   _onProgressCallback = callback;
 }
 
-export function cleanupPortableRuntimes(onLogOutput?: (text: string) => void): void {
+export function cleanupPortableRuntimes(installationPath?: string, onLogOutput?: (text: string) => void): void {
   const logCleanup = (message: string): void => {
     debugLog('bootstrap', message);
     if (onLogOutput) {
@@ -79,10 +79,10 @@ export function cleanupPortableRuntimes(onLogOutput?: (text: string) => void): v
   };
 
   logCleanup('Cleaning up existing portable runtimes for fresh extraction...');
-  const primaryGit = getPrimaryGitExecutablePath();
-  const fallbackGit = getFallbackGitExecutablePath();
-  const primaryPython = getPrimaryPythonExecutablePath();
-  const fallbackPython = getFallbackPythonExecutablePath();
+  const primaryGit = getPrimaryGitExecutablePath(installationPath);
+  const fallbackGit = getFallbackGitExecutablePath(installationPath);
+  const primaryPython = getPrimaryPythonExecutablePath(installationPath);
+  const fallbackPython = getFallbackPythonExecutablePath(installationPath);
 
   // Delete git directory if it exists
   const gitDir = path.dirname(primaryGit);
@@ -229,11 +229,11 @@ function ensurePythonLayout(pythonBaseDir: string): void {
   }
 }
 
-function hasPortableRuntimes(): boolean {
-  const primaryGit = getPrimaryGitExecutablePath();
-  const fallbackGit = getFallbackGitExecutablePath();
-  const primaryPython = getPrimaryPythonExecutablePath();
-  const fallbackPython = getFallbackPythonExecutablePath();
+function hasPortableRuntimes(installationPath?: string): boolean {
+  const primaryGit = getPrimaryGitExecutablePath(installationPath);
+  const fallbackGit = getFallbackGitExecutablePath(installationPath);
+  const primaryPython = getPrimaryPythonExecutablePath(installationPath);
+  const fallbackPython = getFallbackPythonExecutablePath(installationPath);
 
   const gitExists = fs.existsSync(primaryGit) || fs.existsSync(fallbackGit);
   const pythonExists = fs.existsSync(primaryPython) || fs.existsSync(fallbackPython);
@@ -245,8 +245,8 @@ function hasPortableRuntimes(): boolean {
  * Ensure bundled Git and Python runtimes are extracted and available
  * @param forceExtraction If true, re-extract even if runtimes already exist
  */
-export async function ensurePortableRuntimes(forceExtraction = false): Promise<void> {
-  debugLog('bootstrap', 'ensurePortableRuntimes invoked', { forceExtraction });
+export async function ensurePortableRuntimes(forceExtraction = false, installationPath?: string): Promise<void> {
+  debugLog('bootstrap', 'ensurePortableRuntimes invoked', { forceExtraction, installationPath });
   
   // Portable runtimes are only available on Windows
   if (process.platform !== 'win32') {
@@ -254,13 +254,13 @@ export async function ensurePortableRuntimes(forceExtraction = false): Promise<v
     throw new Error('Portable runtimes are only available on Windows. Please use system git and python.');
   }
   
-  const primaryGit = getPrimaryGitExecutablePath();
-  const fallbackGit = getFallbackGitExecutablePath();
-  const primaryPython = getPrimaryPythonExecutablePath();
-  const fallbackPython = getFallbackPythonExecutablePath();
+  const primaryGit = getPrimaryGitExecutablePath(installationPath);
+  const fallbackGit = getFallbackGitExecutablePath(installationPath);
+  const primaryPython = getPrimaryPythonExecutablePath(installationPath);
+  const fallbackPython = getFallbackPythonExecutablePath(installationPath);
 
   if (initialized && !forceExtraction) {
-    if (hasPortableRuntimes()) {
+    if (hasPortableRuntimes(installationPath)) {
       debugLog('bootstrap', 'Runtimes already initialized and available');
       return;
     }
@@ -272,7 +272,7 @@ export async function ensurePortableRuntimes(forceExtraction = false): Promise<v
   (globalThis as unknown as { bootstrapAbortController?: AbortController }).bootstrapAbortController = abortController;
 
   logOutput('Starting bootstrap process...\n');
-  const binaryDir = getDefaultBinaryPath();
+  const binaryDir = getBinaryPath(installationPath);
   fs.mkdirSync(binaryDir, { recursive: true });
 
   // Prepare extraction tasks
@@ -402,12 +402,12 @@ export async function ensurePortableRuntimes(forceExtraction = false): Promise<v
 /**
  * Start bootstrap process asynchronously (idempotent - returns stored promise if already running)
  */
-export function startBootstrapAsync(): Promise<void> {
+export function startBootstrapAsync(installationPath?: string): Promise<void> {
   if (bootstrapPromise) {
     return bootstrapPromise;
   }
 
-  bootstrapPromise = ensurePortableRuntimes().catch((error) => {
+  bootstrapPromise = ensurePortableRuntimes(false, installationPath).catch((error) => {
     bootstrapError = error as Error;
     // Clean up abort controller on error
     (globalThis as unknown as { bootstrapAbortController?: AbortController | null }).bootstrapAbortController = null;
@@ -420,8 +420,8 @@ export function startBootstrapAsync(): Promise<void> {
 /**
  * Check if bootstrap process has completed successfully
  */
-export function isBootstrapComplete(): boolean {
-  if (!initialized && hasPortableRuntimes()) {
+export function isBootstrapComplete(installationPath?: string): boolean {
+  if (!initialized && hasPortableRuntimes(installationPath)) {
     // Restore bootstrap-complete state on fresh app runs when runtimes already exist on disk.
     initialized = true;
     bootstrapError = null;

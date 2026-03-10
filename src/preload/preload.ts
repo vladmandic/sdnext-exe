@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { InstallOptions, SdNextConfig, StartupState, TerminalDimensions, TerminalOutputEvent, UiStatus, VersionUpdateEvent, ToolsUpdateEvent, GPUUpdateEvent, ExtractionProgressEvent } from '../shared/types';
 
 const api = {
-  startBootstrap: (): Promise<{ success: boolean }> => ipcRenderer.invoke('launcher:start-bootstrap'),
+  startBootstrap: (installationPath?: string): Promise<{ success: boolean }> => ipcRenderer.invoke('launcher:start-bootstrap', installationPath ? { installationPath } : undefined),
   getStartupState: (): Promise<StartupState> => ipcRenderer.invoke('launcher:get-startup-state'),
   loadConfig: (): Promise<SdNextConfig> => ipcRenderer.invoke('launcher:load-config'),
   saveConfig: (config: SdNextConfig): Promise<SdNextConfig> => ipcRenderer.invoke('launcher:save-config', config),

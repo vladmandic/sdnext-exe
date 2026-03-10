@@ -19,7 +19,7 @@ export async function runLaunchWorkflow(
     branch: config.repositoryBranch,
     autoLaunch: config.autoLaunch,
   });
-  await ensurePortableRuntimes();
+  await ensurePortableRuntimes(false, config.installationPath);
 
   const appPath = path.join(config.installationPath, 'app');
   const venvPython = getVenvPythonPath(config.installationPath);
@@ -29,14 +29,14 @@ export async function runLaunchWorkflow(
     throw new Error('Application is not installed: /venv is missing. Run installer first.');
   }
 
-  const currentBranch = getCurrentBranch(appPath);
+  const currentBranch = getCurrentBranch(appPath, config.installationPath);
   if (currentBranch === config.repositoryBranch) {
     onOutput(`[git] Already on branch ${config.repositoryBranch}, skipping checkout\n`);
     debugLog('launch', 'Already on target branch, skipping checkout', { branch: config.repositoryBranch });
   } else {
     onOutput(`[git] Checking out branch ${config.repositoryBranch}\n`);
     debugLog('launch', 'Checking out branch', { branch: config.repositoryBranch, currentBranch: currentBranch ?? 'unknown' });
-    runGit(['-C', appPath, 'checkout', config.repositoryBranch], onOutput);
+    runGit(['-C', appPath, 'checkout', config.repositoryBranch], onOutput, config.installationPath);
   }
 
   const args = ['launch.py', '--log', 'sdnext.log', '--models-dir', config.modelsPath];

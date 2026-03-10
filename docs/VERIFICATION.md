@@ -335,7 +335,7 @@ This document verifies that all requirements specified in [TASK.md](TASK.md) hav
 | Path Type | TASK Requirement | Implementation | Status |
 |-----------|-----------------|----------------|--------|
 | Install path | Default: `sdnext` subfolder relative to exe | `runtime-paths.ts` → `getDefaultInstallationPath()` returns `exe-dir/sdnext` | ✅ |
-| Binary path | `%INSTALLPATH%/bin` | `runtime-paths.ts` → `getDefaultBinaryPath()` returns `sdnext/bin` | ✅ |
+| Binary path | `%INSTALLPATH%/bin` | `runtime-paths.ts` → `getBinaryPath(config.installationPath)` (falling back to default) | ✅ |
 | App path | `%INSTALLPATH%/app` | Used in `install-workflow.ts` and `start-workflow.ts` as `path.join(config.installationPath, 'app')` | ✅ |
 | Models path | Default: `%APPPATH%/models` | `runtime-paths.ts` → `getDefaultModelsPath()` returns `installationPath/app/models` | ✅ |
 | User customization | User should be able to select custom paths | ✅ Implemented via config UI with Browse buttons | ✅ |
@@ -350,8 +350,8 @@ This document verifies that all requirements specified in [TASK.md](TASK.md) hav
 |------------|----------------|--------|
 | Bundle `nuget-git-2.53.0.zip` | `portable/nuget-git-2.53.0.zip` exists, included in `package.json` extraResources | ✅ |
 | Bundle `python-3.13.12.zip` | `portable/python-3.13.12.zip` exists, included in `package.json` extraResources | ✅ |
-| Unpack Git to `%BINARYPATH%/git` | `portable-bootstrap.ts` extracts to `getDefaultBinaryPath()/git` | ✅ |
-| Unpack Python to `%BINARYPATH%/python` | `portable-bootstrap.ts` extracts to `getDefaultBinaryPath()/python` | ✅ |
+| Unpack Git to `%BINARYPATH%/git` | `portable-bootstrap.ts` extracts to `getBinaryPath(installationPath)/git` (honors config) | ✅ |
+| Unpack Python to `%BINARYPATH%/python` | `portable-bootstrap.ts` extracts to `getBinaryPath(installationPath)/python` (honors config) | ✅ |
 | Use `%BINARYPATH%/git/git.exe` | `runtime-paths.ts` → `getPrimaryGitExecutablePath()` with fallback | ✅ |
 | Use `%BINARYPATH%/python/python.exe` | `runtime-paths.ts` → `getPrimaryPythonExecutablePath()` | ✅ |
 | Ignore system Git/Python | All workflows use bundled tools exclusively via `runtime-paths.ts` | ✅ |

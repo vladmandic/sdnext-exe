@@ -88,7 +88,25 @@ export function saveConfig(config: SdNextConfig): SdNextConfig {
   const filePath = getConfigPath();
   const tempPath = `${filePath}.tmp`;
 
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  // Ensure containing directory exists before writing.  If the executable
+  // happens to live at a drive root (e.g. `D:\launcher.exe`) the dirname is
+  // the root itself; attempting mkdirSync on a root path fails with EPERM on
+  // Windows, so skip the operation in that case.  A failure here is non‑fatal
+  // because the file write below will succeed if the directory is already
+  // present.
+  const dir = path.dirname(filePath);
+  try {
+    const root = path.parse(dir).root;
+    if (dir && dir !== root) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  } catch (err) {
+    // ignore EPERM/other errors; writeFileSync below will report them if
+    // necessary.  This helps avoid crashes when running from a protected
+    // location such as the volume root.
+    console.debug('saveConfig: mkdir failed, continuing', err);
+  }
+
   fs.writeFileSync(tempPath, JSON.stringify(validated, null, 2), 'utf8');
   fs.renameSync(tempPath, filePath);
 

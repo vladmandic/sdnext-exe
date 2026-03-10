@@ -27,6 +27,19 @@ export function getDefaultInstallationPath(): string {
   return path.join(getExecutableDir(), 'sdnext');
 }
 
+/**
+ * Compute the base binary directory that contains portable runtimes.
+ * When an installationPath is provided the binaries live under
+ * `<installationPath>/bin`; otherwise the default path joined with
+ * `bin` is returned (exe-dir/sdnext/bin).
+ */
+export function getBinaryPath(installationPath?: string): string {
+  if (installationPath && installationPath.trim()) {
+    return path.join(installationPath, 'bin');
+  }
+  return getDefaultBinaryPath();
+}
+
 export function getDefaultBinaryPath(): string {
   return path.join(getDefaultInstallationPath(), 'bin');
 }
@@ -65,42 +78,48 @@ function getExecutableExtension(): string {
   return process.platform === 'win32' ? '.exe' : '';
 }
 
-export function getPrimaryGitExecutablePath(): string {
+export function getPrimaryGitExecutablePath(installationPath?: string): string {
   const ext = getExecutableExtension();
-  return path.join(getDefaultBinaryPath(), 'git', `git${ext}`);
+  const base = getBinaryPath(installationPath);
+  return path.join(base, 'git', `git${ext}`);
 }
 
-export function getFallbackGitExecutablePath(): string {
+export function getFallbackGitExecutablePath(installationPath?: string): string {
   const ext = getExecutableExtension();
+  const base = getBinaryPath(installationPath);
   if (process.platform === 'win32') {
-    return path.join(getDefaultBinaryPath(), 'git', 'cmd', `git${ext}`);
+    return path.join(base, 'git', 'cmd', `git${ext}`);
   }
   // On Unix, same as primary
-  return getPrimaryGitExecutablePath();
+  return getPrimaryGitExecutablePath(installationPath);
 }
 
-export function getPrimaryPythonExecutablePath(): string {
+export function getPrimaryPythonExecutablePath(installationPath?: string): string {
   const ext = getExecutableExtension();
-  return path.join(getDefaultBinaryPath(), 'python', `python${ext}`);
+  const base = getBinaryPath(installationPath);
+  return path.join(base, 'python', `python${ext}`);
 }
 
-export function getFallbackPythonExecutablePath(): string {
+export function getFallbackPythonExecutablePath(installationPath?: string): string {
   const ext = getExecutableExtension();
-  return path.join(getDefaultBinaryPath(), 'python', `python${ext}`);
+  const base = getBinaryPath(installationPath);
+  return path.join(base, 'python', `python${ext}`);
 }
 
-export function getGitExecutablePath(): string {
-  return fs.existsSync(getPrimaryGitExecutablePath()) ? getPrimaryGitExecutablePath() : getFallbackGitExecutablePath();
+export function getGitExecutablePath(installationPath?: string): string {
+  const primary = getPrimaryGitExecutablePath(installationPath);
+  const fallback = getFallbackGitExecutablePath(installationPath);
+  return fs.existsSync(primary) ? primary : fallback;
 }
 
-export function getPythonExecutablePath(): string {
+export function getPythonExecutablePath(installationPath?: string): string {
   // First try portable Python (Windows only)
-  const portablePython = getPrimaryPythonExecutablePath();
-  if (fs.existsSync(portablePython)) {
-    return portablePython;
+  const primary = getPrimaryPythonExecutablePath(installationPath);
+  if (fs.existsSync(primary)) {
+    return primary;
   }
   
-  const fallbackPortable = getFallbackPythonExecutablePath();
+  const fallbackPortable = getFallbackPythonExecutablePath(installationPath);
   if (fs.existsSync(fallbackPortable)) {
     return fallbackPortable;
   }

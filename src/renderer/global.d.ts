@@ -3,7 +3,7 @@ import type { InstallOptions, SdNextConfig, StartupState, TerminalDimensions, Te
 declare global {
   interface Window {
     sdnext: {
-      startBootstrap: () => Promise<{ success: boolean }>;
+      startBootstrap: (installationPath?: string) => Promise<{ success: boolean }>;
       getStartupState: () => Promise<StartupState>;
       loadConfig: () => Promise<SdNextConfig>;
       saveConfig: (config: SdNextConfig) => Promise<SdNextConfig>;

@@ -8,19 +8,24 @@ import {
   getPrimaryPythonExecutablePath,
 } from './runtime-paths';
 
-function resolveGitExe(): string {
-  return fs.existsSync(getPrimaryGitExecutablePath()) ? getPrimaryGitExecutablePath() : getFallbackGitExecutablePath();
+function resolveGitExe(installationPath?: string): string {
+  const primary = getPrimaryGitExecutablePath(installationPath);
+  const fallback = getFallbackGitExecutablePath(installationPath);
+  return fs.existsSync(primary) ? primary : fallback;
 }
 
-function resolvePythonExe(): string {
-  return fs.existsSync(getPrimaryPythonExecutablePath()) ? getPrimaryPythonExecutablePath() : getFallbackPythonExecutablePath();
+function resolvePythonExe(installationPath?: string): string {
+  const primary = getPrimaryPythonExecutablePath(installationPath);
+  const fallback = getFallbackPythonExecutablePath(installationPath);
+  return fs.existsSync(primary) ? primary : fallback;
 }
 
 export function getToolVersions(
+  installationPath?: string,
   onError?: (message: string) => void,
 ): { git: string; python: string; gitOk: boolean; pythonOk: boolean } {
-  const gitExe = resolveGitExe();
-  const pythonExe = resolvePythonExe();
+  const gitExe = resolveGitExe(installationPath);
+  const pythonExe = resolvePythonExe(installationPath);
 
   let git = 'Unknown';
   let python = 'Unknown';

@@ -605,7 +605,8 @@ import type { SdNextConfig, StartupState } from '../shared/types';
 
 contextBridge.exposeInMainWorld('sdnext', {
   // Invoke methods
-  startBootstrap: () => ipcRenderer.invoke('launcher:start-bootstrap'),
+  // installationPath argument may be provided to target a specific install location
+  startBootstrap: (installationPath?: string) => ipcRenderer.invoke('launcher:start-bootstrap', installationPath ? { installationPath } : undefined),
   getStartupState: () => ipcRenderer.invoke('launcher:get-startup-state'),
   loadConfig: () => ipcRenderer.invoke('launcher:load-config'),
   saveConfig: (config: SdNextConfig) => ipcRenderer.invoke('launcher:save-config', config),

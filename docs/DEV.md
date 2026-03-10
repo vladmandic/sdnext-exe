@@ -392,7 +392,7 @@ Handles persistence with atomic writes:
 
 Resolves paths in both dev and packaged modes:
 - `getDefaultInstallationPath()` → exe_dir/sdnext
-- `getDefaultBinaryPath()` → install_path/bin
+- `getBinaryPath(installationPath?)` → returns `<installationPath>/bin` when provided (falling back to default), previously `getDefaultBinaryPath()`
 - `getDefaultAppPath()` → install_path/app
 - `getDefaultModelsPath()` → app_path/models
 - `getPrimaryGitExecutablePath()` → git.exe location

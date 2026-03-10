@@ -51,7 +51,7 @@ export const IPC_CHANNELS = {
  */
 export interface IpcInvokeChannels {
   [IPC_CHANNELS.START_BOOTSTRAP]: {
-    params: void;
+    params: { installationPath?: string } | void;
     return: { success: boolean; message?: string };
   };
   [IPC_CHANNELS.GET_STARTUP_STATE]: {

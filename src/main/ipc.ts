@@ -5,7 +5,7 @@ import { execSync } from 'node:child_process';
 import { shell } from 'electron';
 import type { InstallOptions, SdNextConfig, TerminalDimensions, UiStatus, StartupState, ExtractionProgressEvent } from '../shared/types';
 import { loadConfig, saveConfig } from './services/config-service';
-import { getLogoPath, isBootstrapAvailable } from './services/runtime-paths';
+import { getLogoPath, isBootstrapAvailable, getGitExecutablePath } from './services/runtime-paths';
 import { readInstalledVersion } from './services/version-service';
 import { ProcessRunner } from './services/process-runner';
 import { runInstallWorkflow } from './services/install-workflow';
@@ -114,10 +114,10 @@ export function registerIpc(window: BrowserWindow): void {
    * Starts the bootstrap process to extract and install required runtime dependencies
    * @returns Promise resolving to success status and optional error message
    */
-  ipcMain.handle('launcher:start-bootstrap', async () => {
+  ipcMain.handle('launcher:start-bootstrap', async (_event, payload: { installationPath?: string } = {}) => {
     const timerId = `bootstrap-${Date.now()}`;
     debugTimer(timerId);
-    debugLog('ipc', '[BOOTSTRAP] launcher:start-bootstrap invoked');
+    debugLog('ipc', '[BOOTSTRAP] launcher:start-bootstrap invoked', { installationPath: payload.installationPath });
     
     // Prevent parallel operations
     if (operationInProgress) {
@@ -141,11 +141,11 @@ export function registerIpc(window: BrowserWindow): void {
     
     // Clean up existing non-functional installations
     debugLog('ipc', '[BOOTSTRAP] Cleaning up existing portable runtimes');
-    cleanupPortableRuntimes((text) => emitTerminal(text, false));
+    cleanupPortableRuntimes(payload.installationPath, (text) => emitTerminal(text, false));
     
     try {
       debugLog('ipc', '[BOOTSTRAP] Starting bootstrap extraction...');
-      await startBootstrapAsync();
+      await startBootstrapAsync(payload.installationPath);
       debugLog('ipc', '[BOOTSTRAP] Bootstrap extraction completed');
       // Keep completion visible briefly before returning to idle.
       setStatus(STATUS.BOOTSTRAP_COMPLETE as UiStatus);
@@ -204,7 +204,8 @@ export function registerIpc(window: BrowserWindow): void {
 
       // Check if bootstrap is still in progress
       debugLog('ipc', '[STARTUP] Checking bootstrap state...');
-      if (!isBootstrapComplete()) {
+      const cfg = loadConfig();
+      if (!isBootstrapComplete(cfg.installationPath)) {
         const error = getBootstrapError();
         if (error) {
           // Bootstrap failed
@@ -313,8 +314,10 @@ export function registerIpc(window: BrowserWindow): void {
       const timerId = 'background:tool-versions';
       debugTimer(timerId);
       try {
-        debugLog('ipc', '[BACKGROUND:TOOLS] Starting tool version checks');
-        const tools = getToolVersions((errorMsg) => {
+        debugLog('ipc', '[BACKGROUND:TOOLS] Loading config for tool check');
+        const config = loadConfig();
+        debugLog('ipc', '[BACKGROUND:TOOLS] Starting tool version checks', { installationPath: config.installationPath });
+        const tools = getToolVersions(config.installationPath, (errorMsg) => {
           emitTerminal(errorMsg, true);
         });
         debugLog('ipc', '[BACKGROUND:TOOLS] Tool version checks complete', { git: tools.git, python: tools.python, gitOk: tools.gitOk, pythonOk: tools.pythonOk });
@@ -353,43 +356,46 @@ export function registerIpc(window: BrowserWindow): void {
         });
 
         // Run version check only after tools are confirmed usable.
-        if (tools.gitOk && tools.pythonOk && isBootstrapComplete()) {
-          const versionTimerId = 'background:version-check';
-          debugTimer(versionTimerId);
-          try {
-            debugLog('ipc', '[BACKGROUND:VERSION] Loading config...');
-            const configStart = Date.now();
-            const config = loadConfig();
-            debugLog('ipc', '[BACKGROUND:VERSION] Config loaded', { installationPath: config.installationPath, elapsed: `${Date.now() - configStart}ms` });
+        if (tools.gitOk && tools.pythonOk) {
+          const cfg2 = loadConfig();
+          if (isBootstrapComplete(cfg2.installationPath)) {
+            const versionTimerId = 'background:version-check';
+            debugTimer(versionTimerId);
+            try {
+              debugLog('ipc', '[BACKGROUND:VERSION] Loading config...');
+              const configStart = Date.now();
+              const config = loadConfig();
+              debugLog('ipc', '[BACKGROUND:VERSION] Config loaded', { installationPath: config.installationPath, elapsed: `${Date.now() - configStart}ms` });
 
-            debugLog('ipc', '[BACKGROUND:VERSION] Starting version check...');
-            const versionStart = Date.now();
-            const version = readInstalledVersion(config.installationPath);
-            const installed = Boolean(version);
-            const versionText = version ? `${version.date} (${version.commit})` : 'N/A';
+              debugLog('ipc', '[BACKGROUND:VERSION] Starting version check...');
+              const versionStart = Date.now();
+              const version = readInstalledVersion(config.installationPath);
+              const installed = Boolean(version);
+              const versionText = version ? `${version.date} (${version.commit})` : 'N/A';
 
-            debugLog('ipc', '[BACKGROUND:VERSION] Version check complete', { installed, version: versionText, elapsed: `${Date.now() - versionStart}ms` });
-            debugTimerEnd(versionTimerId);
-            cachedVersionUpdate = {
-              installed,
-              version: versionText,
-            };
+              debugLog('ipc', '[BACKGROUND:VERSION] Version check complete', { installed, version: versionText, elapsed: `${Date.now() - versionStart}ms` });
+              debugTimerEnd(versionTimerId);
+              cachedVersionUpdate = {
+                installed,
+                version: versionText,
+              };
 
-            activeWindow?.webContents.send('launcher:version-update', {
-              installed,
-              version: versionText,
-            });
-          } catch (error) {
-            debugLog('ipc', '[BACKGROUND:VERSION] Version check / config load failed', error);
-            debugTimerEnd(versionTimerId);
-            cachedVersionUpdate = {
-              installed: false,
-              version: 'N/A',
-            };
-            activeWindow?.webContents.send('launcher:version-update', {
-              installed: false,
-              version: 'N/A',
-            });
+              activeWindow?.webContents.send('launcher:version-update', {
+                installed,
+                version: versionText,
+              });
+            } catch (error) {
+              debugLog('ipc', '[BACKGROUND:VERSION] Version check / config load failed', error);
+              debugTimerEnd(versionTimerId);
+              cachedVersionUpdate = {
+                installed: false,
+                version: 'N/A',
+              };
+              activeWindow?.webContents.send('launcher:version-update', {
+                installed: false,
+                version: 'N/A',
+              });
+            }
           }
         }
       } catch (error) {
@@ -810,7 +816,7 @@ export function registerIpc(window: BrowserWindow): void {
     };
 
     try {
-      const tools = getToolVersions();
+      const tools = getToolVersions(payload.installationPath);
       if (!tools.gitOk) {
         debugLog('ipc', 'launcher:get-version-info skipped: git not ready', { git: tools.git });
         return result;
@@ -834,7 +840,8 @@ export function registerIpc(window: BrowserWindow): void {
 
       // Get git commit hash (short)
       try {
-        const commitHash = execSync('git rev-parse --short HEAD', {
+        const gitExe = getGitExecutablePath(payload.installationPath);
+        const commitHash = execSync(`${gitExe} rev-parse --short HEAD`, {
           cwd: appDir,
           encoding: 'utf-8',
           stdio: ['pipe', 'pipe', 'ignore'],
@@ -846,7 +853,8 @@ export function registerIpc(window: BrowserWindow): void {
 
       // Get git branch
       try {
-        const branch = execSync('git rev-parse --abbrev-ref HEAD', {
+        const gitExe = getGitExecutablePath(payload.installationPath);
+        const branch = execSync(`${gitExe} rev-parse --abbrev-ref HEAD`, {
           cwd: appDir,
           encoding: 'utf-8',
           stdio: ['pipe', 'pipe', 'ignore'],
